@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --tweet-bg: #1da1f2;
+            --tweet-hover: #1a91da;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            width: 100%;
+            padding: 2rem 1rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: -webkit-linear-gradient(45deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .controls {
+            margin-top: 1rem;
+        }
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+        }
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .spinner {
+            display: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        main {
+            max-width: 800px;
+            width: 100%;
+            padding: 2rem 1rem;
+            box-sizing: border-box;
+        }
+        .notes-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .note-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .note-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .note-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .note-date {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .note-content {
+            color: #cbd5e1;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+        .note-content a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        .note-content a:hover {
+            text-decoration: underline;
+        }
+        .tweet-btn {
+            background: var(--tweet-bg);
+            box-shadow: 0 4px 6px -1px rgba(29, 161, 242, 0.3);
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+        }
+        .tweet-btn:hover {
+            background: var(--tweet-hover);
+        }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .error-message {
+            color: #ef4444;
+            text-align: center;
+            padding: 2rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>BigQuery Release Notes</h1>
+        <div class="controls">
+            <button id="refreshBtn" onclick="fetchNotes()">
+                <span>Refresh</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div id="notesContainer" class="notes-container">
+            <!-- Notes will be injected here -->
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', fetchNotes);
+
+        async function fetchNotes() {
+            const btn = document.getElementById('refreshBtn');
+            const spinner = document.getElementById('spinner');
+            const container = document.getElementById('notesContainer');
+
+            // Set loading state
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            container.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/notes');
+                if (!response.ok) throw new Error('Failed to fetch data');
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color: var(--text-muted)">No release notes found.</p>';
+                }
+
+                data.forEach((note, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'note-card';
+                    card.style.animationDelay = `${index * 0.1}s`;
+
+                    // Format Date
+                    const dateObj = new Date(note.published);
+                    const dateStr = isNaN(dateObj.getTime()) ? note.published : dateObj.toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'short', day: 'numeric'
+                    });
+
+                    // Prepare Tweet intent
+                    // Simple text extraction for tweet
+                    let tempDiv = document.createElement("div");
+                    tempDiv.innerHTML = note.summary;
+                    let plainTextSummary = tempDiv.textContent || tempDiv.innerText || "";
+                    let shortSummary = plainTextSummary.substring(0, 80) + "...";
+                    
+                    const tweetText = encodeURIComponent(`BigQuery Update: ${note.title} - ${shortSummary}\n${note.link}`);
+                    const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
+
+                    card.innerHTML = `
+                        <div class="note-header">
+                            <h2 class="note-title"><a href="${note.link}" target="_blank" style="color: inherit; text-decoration: none;">${note.title || 'Update'}</a></h2>
+                            <div class="note-date">${dateStr}</div>
+                        </div>
+                        <div class="note-content">
+                            ${note.summary}
+                        </div>
+                        <a href="${tweetUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+                            <button class="tweet-btn">
+                                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;">
+                                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                                </svg>
+                                Tweet
+                            </button>
+                        </a>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                container.innerHTML = `<div class="error-message">Error fetching release notes: ${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
